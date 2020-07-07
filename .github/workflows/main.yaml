@@ -1,27 +1,38 @@
-#The name of your workflow.
 name:  Build and deploy
-# Trigger the workflow on push or pull request
+
 on: [push, pull_request]
-#A workflow run is made up of one or more jobs. Jobs run in parallel by default.
+
 jobs:
-  build_deploy:
-    #if conditional to prevent a job from running
-    if: github.event_name != 'pull_request'
-    runs-on: macos-latest
-    name: Build apk and ipa
+  build:
+    runs-on: [macos-latest]
+    env:
+        ENCRYPTED_CERTS_FILE_PATH: ${{ './certs.p12.gpg' }}
+        DECRYPTED_CERTS_FILE_PATH: ${{ './certs.p12' }}
+        ENCRYPTED_PROVISION_FILE_PATH: ${{ './provisioning.tar.gz.gpg' }}
+        DECRYPTED_PROVISION_FILE_PATH: ${{ './provisioning.tar.gz' }}
+        CERTS_ENCRYPTION_PWD: ${{ secrets.CERTS_ENCRYPTION_PWD }}
+        PROVISION_ENCRYPTION_PWD: ${{ secrets.PROVISION_ENCRYPTION_PWD }}
+        CERTS_EXPORT_PWD: ${{ secrets.CERTS_EXPORT_PWD }}
+        KEYCHAIN: ${{ 'test.keychain' }}
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-java@v1
-      with:
-        java-version: '12.x'
-    - uses: subosito/flutter-action@v1
-      with:
-        channel: 'stable' # or: 'dev' or 'beta'
-    - run: flutter packages get
-    #- run: flutter test
-    #- run: flutter build apk
-    - run: flutter build ios
-    #- uses: actions/upload-artifact@v1
-      #with:
-        #name: release-apk
-        #path: build/app/outputs/apk/release/app-release.apk
+      - name: Configure Keychain
+        run: |
+          security create-keychain -p "" "$KEYCHAIN"
+          security list-keychains -s "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings
+          security list-keychains
+      - name: Configure Code Signing
+        run: |
+          gpg -d -o "$DECRYPTED_CERTS_FILE_PATH" --pinentry-mode=loopback --passphrase "$CERTS_ENCRYPTION_PWD" "$ENCRYPTED_CERTS_FILE_PATH"
+          gpg -d -o "$DECRYPTED_PROVISION_FILE_PATH" --pinentry-mode=loopback --passphrase "$PROVISION_ENCRYPTION_PWD" "$ENCRYPTED_PROVISION_FILE_PATH"
+          security import "$DECRYPTED_CERTS_FILE_PATH" -k "$KEYCHAIN" -P "$CERTS_EXPORT_PWD" -A
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN"
+          tar xzvf $DECRYPTED_PROVISION_FILE_PATH
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          for PROVISION in `ls ./*.mobileprovision`
+          do
+            UUID=`/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i ./$PROVISION)`
+            cp "./$PROVISION" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          done
