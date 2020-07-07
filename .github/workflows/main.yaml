@@ -23,6 +23,7 @@ jobs:
           security unlock-keychain -p "" "$KEYCHAIN"
           security set-keychain-settings
           security list-keychains
+      - uses: actions/checkout@v2
       - name: Configure Code Signing
         run: |
           gpg -d -o "$DECRYPTED_CERTS_FILE_PATH" --pinentry-mode=loopback --passphrase "$CERTS_ENCRYPTION_PWD" "$ENCRYPTED_CERTS_FILE_PATH"
