@@ -51,6 +51,14 @@ jobs:
           mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
           cd build/ios/iphoneos
           zip -r app.ipa Payload
+      - name: Upload artifacts
+        run: |
+          mkdir -p ./artifacts
+          mv build/ios/iphoneos/app.ipa ./artifacts
+      - uses: actions/upload-artifact@v1.0.0
+        with:
+          name: Artifacts 
+          path: ./artifacts
      # - run: flutter build ios --release --no-codesign
      # - name: Create ipa
      #   run: |
