@@ -33,6 +33,8 @@ jobs:
           tar xzvf $DECRYPTED_PROVISION_FILE_PATH
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp ./82879f88-5790-44a6-a2ea-cdb51db073af.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/82879f88-5790-44a6-a2ea-cdb51db073af.mobileprovision
+          cd ~/Library/MobileDevice/Provisioning\ Profiles/
+          ls
       - uses: actions/setup-java@v1
         with:
           java-version: '12.x'
